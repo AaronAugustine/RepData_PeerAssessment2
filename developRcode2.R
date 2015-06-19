@@ -2,14 +2,13 @@
 
 #reference packages
 library(downloader)
-library(R.utils)
-library(data.table)
 library(plyr)
 library(ggplot2)
+library(utils)
 
 #set up options
 #opts_chunk$set(fig.path='figure/')                #set path for figure output
-#options("scipen"=999, "digits"=2)                 #modify options for sci notation and digits
+
 
 #Set URL to download file and file name
 fileUrl1 <- "https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2FStormData.csv.bz2"
@@ -34,20 +33,20 @@ keepvar<-c("BGN_DATE",
            "PROPDMG",
            "PROPDMGEXP",
            "CROPDMG",
-           "CROPDMGEXP")
+           "CROPDMGEXP",
+           "REFNUM")
 
 #subset raw data to variables in keepvar
 step1<-rawdata[,keepvar]
+
+#execute unique command to identify translations to build
+unique(rawdata$EVTYPE)
+unique(rawdata$PROPDMGEXP)
+unique(rawdata$CROPDMGEXP)
   
 
-#Convert ENVTYPE to upper case calling it OLD
-step1$EVTYPE<-toupper(step1$EVTYPE)
-step1$PROPDMGEXP<-toupper(step1$PROPDMGEXP)
-step1$CROPDMGEXP<-toupper(step1$CROPDMGEXP)
-
-
 #Read in EVTYPE translation file
-trans <- read.csv("EVTYPEtranslations2.csv",
+trans <- read.csv("EVTYPEtranslations3.csv",
                     header=TRUE,
                     sep=",",
                     na.strings="NA",
@@ -59,48 +58,44 @@ step2 <- merge(step1,trans,
                  by.y="OLD",
                  all.x=TRUE)
 
+
 #read in translation file to conver PROPDMGEXP and CROPDMGEXP
-moneytrans <- read.csv("moneytrans.csv",
-                  header=TRUE,
-                  sep=",",
-                  na.strings="NA",
-                  stringsAsFactors=FALSE)
-moneytrans$prop<-moneytrans$FACTOR
-moneytrans$crop<-moneytrans$FACTOR
+tempPROPDMG <- mapvalues(step2$PROPDMGEXP, 
+                         c("K","M","", "B","m","+","0","5","6","?","4","2","3","h","7","H","-","1","8"), 
+                         c(1e3,1e6, 1, 1e9,1e6,  1,  1,1e5,1e6,  1,1e4,1e2,1e3,  1,1e7,1e2,  1, 10,1e8))
 
+tempCROPDMG <- mapvalues(step2$CROPDMGEXP, 
+                         c("","M","K","m","B","?","0","k","2"), 
+                         c( 1,1e6,1e3,1e6,1e9,1,1,1e3,1e2))
 
-#merge in translation file for PROPDMGEXP
-step3 <- merge(step2,moneytrans[,c("FLAG","prop")],
-                  by.x="PROPDMGEXP",
-                  by.y="FLAG",
-                  all.x=TRUE)
+step2$PROPTOTALDMG <- as.numeric(tempPROPDMG) * step2$PROPDMG
+step2$CROPTOTALDMG <- as.numeric(tempCROPDMG) * step2$CROPDMG
+step2$damage <- (step2$PROPTOTALDMG + step2$CROPTOTALDMG)/1000000000
+step2$people <- (step2$FATALITIES + step2$INJURIES)/1000
 
-#merge in translation file for CROPDMGEXP
-step4 <- merge(step3,moneytrans[,c("FLAG","crop")],
-                   by.x="CROPDMGEXP",
-                   by.y="FLAG",
-                   all.x=TRUE)
-
-
-#variable set up section for plots
-step4$damage <- round(((step4$PROPDMG * step4$PROPDMG) + 
-                         (step4$CROPDMG * step4$CROPDMG))/1000000,digits=0)
-step4$people <- round((step4$FATALITIES * step4$INJURIES)/1000,digits=0)
-
-step5<-ddply(step4,c("NEW"),
+step3<-ddply(step2,c("NEW"),
                      summarize,
                      damage=sum(damage,na.rm=TRUE),
                      people=sum(people,na.rm=TRUE)
              ) 
 
-chart1<-head(step5[order(step5$people, decreasing=TRUE),],n=10)
-p<-ggplot(chart1, aes(x = reorder(NEW,-people), y = people)) + geom_bar(stat = "identity") 
-p<-p + geom_text(aes(label = people), size = 3, vjust=-.25, hjust=.5,)
-p<-p + theme(axis.text.x = element_text(angle = 90, vjust = .5, hjust=1))
+step3$damage<-round(step3$damage,digits=1)
+step3$people<-round(step3$people,digits=1)
+
+chart1<-head(step3[order(step3$people, decreasing=TRUE),],n=10)
+p<-ggplot(chart1, aes(x = reorder(NEW,-people), y = people)) + 
+    geom_bar(stat = "identity") +
+    geom_text(aes(label = people), size = 3, vjust=-.25, hjust=.5) +
+    theme(axis.text.x = element_text(angle = 90, vjust = .5, hjust=1)) +
+    xlab("Event Type") + ylab("# of Fatalities & Injuries in 1000s") +
+    ggtitle("Impact of Weather Events on population health")
 p
 
-chart2<-head(step5[order(step5$damage, decreasing=TRUE),],n=10)
-q<-ggplot(chart1, aes(x = reorder(NEW,-damage), y = damage)) + geom_bar(stat = "identity") 
-q<-q + geom_text(aes(label = damage), size = 3, vjust=-.25, hjust=.5,)
-q<-q + theme(axis.text.x = element_text(angle = 90, vjust = .5, hjust=1))
+chart2<-head(step3[order(step3$damage, decreasing=TRUE),],n=10) 
+q<-ggplot(chart2, aes(x = reorder(NEW,-damage), y = damage)) + 
+    geom_bar(stat = "identity") +
+    geom_text(aes(label = damage), size = 3, vjust=-.25, hjust=.5) +
+    theme(axis.text.x = element_text(angle = 90, vjust = .5, hjust=1)) +
+    xlab("Event Type") + ylab("Property & Crop damage in billions") +
+    ggtitle("Impact of Weather Events on Economy")
 q

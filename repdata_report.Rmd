@@ -1,0 +1,41 @@
+---
+title: "Impact of Weather Events on Population Health & the Economy"
+author: "Aaron Augustine"
+date: "Thursday, June 18, 2015"
+output: html_document
+---
+
+#Synopsis
+<insert at most 10 complete sentences...describing appproach, prep, results>
+
+#Data Processing
+```{r PackagesandVariables}
+```
+
+```{r DOWNLOADUNZIP cache=TRUE}
+```
+
+
+```{r Conversions1}
+```
+
+
+```{r Conversions2}
+```
+
+
+```{r Plotsetup}
+```
+
+
+
+#Results
+Restate questions first
+
+```{r Results1}
+```
+
+
+
+```{r Results2}
+```
