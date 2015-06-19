@@ -2,10 +2,12 @@
 title: "Impact of Weather Events on Population Health & the Economy"
 author: "Aaron Augustine"
 date: "Thursday, June 18, 2015"
-output: html_document
+output:
+  html_document:
+    keep_md: yes
 ---
-
-
+ 
+ 
 
 #Synopsis
 This report looks to provide insight into which type of weather events have the greatest impact on population health and the economy.  Health impact will be defined the sum of fatalities and injuries.  Economy impact is defined as the sum of property and crop damage in billions of dollars.
@@ -22,13 +24,16 @@ library(downloader)
 library(R.utils)
 library(plyr)
 library(ggplot2)
-library(utils)
 
 ```
 
 
 This is followed by downloading and unzipping the file.
 ```{r downloadunzip}
+#Set URL to download file and file name
+fileUrl1 <- "https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2FStormData.csv.bz2"
+filename <-paste(getwd(),"/repdata_data_StormData.csv.bz2",sep="")
+
 #Download and unzip the file
 download(fileUrl1, dest=filename, mode="wb") 
 bunzip2("repdata_data_StormData.csv.bz2", remove = FALSE, overwrite = TRUE) 
