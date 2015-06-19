@@ -1,7 +1,8 @@
 #Reproduce Data Project 2
 
-#reference packages
+#reference packages used in the analysis
 library(downloader)
+library(R.utils)
 library(plyr)
 library(ggplot2)
 library(utils)
@@ -59,7 +60,7 @@ step2 <- merge(step1,trans,
                  all.x=TRUE)
 
 
-#read in translation file to conver PROPDMGEXP and CROPDMGEXP
+#Convert PROPDMGEXP and CROPDMGEXP
 tempPROPDMG <- mapvalues(step2$PROPDMGEXP, 
                          c("K","M","", "B","m","+","0","5","6","?","4","2","3","h","7","H","-","1","8"), 
                          c(1e3,1e6, 1, 1e9,1e6,  1,  1,1e5,1e6,  1,1e4,1e2,1e3,  1,1e7,1e2,  1, 10,1e8))

@@ -5,37 +5,173 @@ date: "Thursday, June 18, 2015"
 output: html_document
 ---
 
+
+
 #Synopsis
-<insert at most 10 complete sentences...describing appproach, prep, results>
+This report looks to provide insight into which type of weather events have the greatest impact on population health and the economy.  Health impact will be defined the sum of fatalities and injuries.  Economy impact is defined as the sum of property and crop damage in billions of dollars.
+
+This analysis is based on U.S. National Oceanic and Atmospheric Administration's (NOAA) storm database.  From the analysis we found that TORNADO have the biggest impact on population health and FLOOD on economy.
+
+
 
 #Data Processing
-```{r PackagesandVariables}
-```
+This section outlines the steps used for preparing the data.  First I reference the necessary R packages.
+```{r Packages, warning=FALSE}
+#reference packages used in the analysis
+library(downloader)
+library(R.utils)
+library(plyr)
+library(ggplot2)
+library(utils)
 
-```{r DOWNLOADUNZIP cache=TRUE}
-```
-
-
-```{r Conversions1}
-```
-
-
-```{r Conversions2}
 ```
 
 
-```{r Plotsetup}
+This is followed by downloading and unzipping the file.
+```{r downloadunzip}
+#Download and unzip the file
+download(fileUrl1, dest=filename, mode="wb") 
+bunzip2("repdata_data_StormData.csv.bz2", remove = FALSE, overwrite = TRUE) 
+```
+
+
+The unzipped .csv file is read in and stored under rawdata.
+```{r rawdata}
+#Read in the .csv file
+rawdata <- read.csv("repdata_data_StormData.csv",
+                    header=TRUE,
+                    sep=",",
+                    na.strings="NA",
+                    stringsAsFactors=FALSE)
+```
+
+
+To improve processing time subset the data down to just the necessary variables.
+```{r subsetvar}
+#list out variables to keep
+keepvar<-c("BGN_DATE",
+           "EVTYPE",
+           "FATALITIES",
+           "INJURIES",
+           "PROPDMG",
+           "PROPDMGEXP",
+           "CROPDMG",
+           "CROPDMGEXP",
+           "REFNUM")
+
+#subset raw data to variables in keepvar
+step1<-rawdata[,keepvar]
+
+```
+
+
+The Event Type in the data 985 unique values.  In order to make things easier, I took the 985 types and mapped them to 47 and put them in a .csv file to use to translate the original raw data.
+```{r eventtypes}
+#execute unique command to identify translations to build
+unique(rawdata$EVTYPE)
+
+```
+
+
+Here I read in the translation table and merge it against the variable subsetted rawdata.
+```{r translations}
+#Read in EVTYPE translation file
+trans <- read.csv("EVTYPEtranslations3.csv",
+                    header=TRUE,
+                    sep=",",
+                    na.strings="NA",
+                    stringsAsFactors=FALSE)
+
+#merge the EVTYPE in raw data with the translation file to get NEW VALUES
+step2 <- merge(step1,trans,
+                 by.x="EVTYPE",
+                 by.y="OLD",
+                 all.x=TRUE)
+
+
+```
+
+
+The analysis also requires an analysis of property and crop damage.  To do this we need to convert the multiplication indicators from "K", "M", "B", etc. to 1000, 1000000, 1000000000.  To do this I pulled out the unique values and then mapped the values.
+```{r indicators}
+
+unique(rawdata$PROPDMGEXP)
+unique(rawdata$CROPDMGEXP)
+
+#Convert PROPDMGEXP and CROPDMGEXP
+tempPROPDMG <- mapvalues(step2$PROPDMGEXP, 
+                         c("K","M","", "B","m","+","0","5","6","?","4","2","3","h","7","H","-","1","8"), 
+                         c(1e3,1e6, 1, 1e9,1e6,  1,  1,1e5,1e6,  1,1e4,1e2,1e3,  1,1e7,1e2,  1, 10,1e8))
+
+tempCROPDMG <- mapvalues(step2$CROPDMGEXP, 
+                         c("","M","K","m","B","?","0","k","2"), 
+                         c( 1,1e6,1e3,1e6,1e9,1,1,1e3,1e2))
+```
+
+
+From there I applied the mapped values to create numeric property and crop damage values.  
+```{r conversion}
+step2$PROPTOTALDMG <- as.numeric(tempPROPDMG) * step2$PROPDMG
+step2$CROPTOTALDMG <- as.numeric(tempCROPDMG) * step2$CROPDMG
+```
+
+
+In order to provide an overall view of the impact on people I combined fatalities and in juries in as total impact on people in 1000's.  Similarly for the impact on the economy, I did the same for property and crops into damage in billions.
+```{r combinevars}
+step2$people <- (step2$FATALITIES + step2$INJURIES)/1000
+step2$damage <- (step2$PROPTOTALDMG + step2$CROPTOTALDMG)/1000000000
+```
+
+
+Lastly I summarized the impact of people and the economy across the entire data set rounding the results to one decimal place.
+```{r summarize}
+step3<-ddply(step2,c("NEW"),
+                     summarize,
+                     damage=sum(damage,na.rm=TRUE),
+                     people=sum(people,na.rm=TRUE)
+             ) 
+
+step3$damage<-round(step3$damage,digits=1)
+step3$people<-round(step3$people,digits=1)
+
 ```
 
 
 
 #Results
-Restate questions first
+The analysis is focused on answering to main questions.
 
-```{r Results1}
+1. Across the United States, which types of events (as indicated in the EVTYPE variable) are most harmful with respect to population health?
+
+2. Across the United States, which types of events have the greatest economic consequences?
+
+To focus on the event types with the biggest impact, I limited each graph to just the top 10.
+```{r topten}
+chart1<-head(step3[order(step3$people, decreasing=TRUE),],n=10)
+chart2<-head(step3[order(step3$damage, decreasing=TRUE),],n=10) 
 ```
 
 
+From the figure below we can see that TORNADO followed by HEAT are most harmful with respect to population health.
+```{r plot1}
 
-```{r Results2}
+p<-ggplot(chart1, aes(x = reorder(NEW,-people), y = people)) + 
+    geom_bar(stat = "identity") +
+    geom_text(aes(label = people), size = 3, vjust=-.25, hjust=.5) +
+    theme(axis.text.x = element_text(angle = 90, vjust = .5, hjust=1)) +
+    xlab("Event Type") + ylab("# of Fatalities & Injuries in 1000s") +
+    ggtitle("Impact of Weather Events on population health")
+p
+```
+
+
+In the figure below, FLOOD has the biggest economic impact.  Double the next closest type HURRICANE.
+```{r plot2}
+q<-ggplot(chart2, aes(x = reorder(NEW,-damage), y = damage)) + 
+    geom_bar(stat = "identity") +
+    geom_text(aes(label = damage), size = 3, vjust=-.25, hjust=.5) +
+    theme(axis.text.x = element_text(angle = 90, vjust = .5, hjust=1)) +
+    xlab("Event Type") + ylab("Property & Crop damage in billions") +
+    ggtitle("Impact of Weather Events on Economy")
+q
 ```
