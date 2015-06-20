@@ -5,14 +5,14 @@ Thursday, June 18, 2015
  
 
 #Synopsis
-This report looks to provide insight into which type of weather events have the greatest impact on population health and the economy.  Health impact will be defined the sum of fatalities and injuries.  Economy impact is defined as the sum of property and crop damage in billions of dollars.
+This report looks to provide insight into which type of weather events have the greatest impact on population health and the economy.  Health impact will be defined as the sum of fatalities and injuries.  Economic impact will be defined as the sum of property and crop damage in billions of dollars.  The goal is to provide an overall impact for both pieces.
 
-This analysis is based on U.S. National Oceanic and Atmospheric Administration's (NOAA) storm database.  From the analysis we found that TORNADO have the biggest impact on population health and FLOOD on economy.
+This analysis is based on the U.S. National Oceanic and Atmospheric Administration's (NOAA) storm database.  From the analysis we found that TORNADOs have the biggest impact on population health and FLOOD on economy.
 
 
 
 #Data Processing
-This section outlines the steps used for preparing the data.  First I reference the necessary R packages.
+This section outlines the steps used for preparing the data.  First I referenced the necessary R packages.
 
 ```r
 #reference packages used in the analysis
@@ -99,7 +99,8 @@ step1<-rawdata[,keepvar]
 ```
 
 
-The Event Type in the data 985 unique values.  In order to make things easier, I took the 985 types and mapped them to 47 and put them in a .csv file to use to translate the original raw data.
+The event types in the data have 985 unique values.  In order to make things easier (spelling, similar event types, upper/lower case, etc), I took the 985 types and mapped them to 47 and put them in a .csv file to use to translate the original raw data.
+
 
 ```r
 #execute unique command to identify translations to build
@@ -603,7 +604,7 @@ unique(rawdata$EVTYPE)
 ```
 
 
-Here I read in the translation table and merge it against the variable subsetted rawdata.
+Here I read in the translation table and merge it against the variable subsetted rawdata.  This translation file can be found at https://github.com/AaronAugustine/RepData_PeerAssessment2.
 
 ```r
 #Read in EVTYPE translation file
@@ -621,7 +622,7 @@ step2 <- merge(step1,trans,
 ```
 
 
-The analysis also requires an analysis of property and crop damage.  To do this we need to convert the multiplication indicators from "K", "M", "B", etc. to 1000, 1000000, 1000000000.  To do this I pulled out the unique values and then mapped the values.
+The analysis also requires the impact of property and crop damage.  To do this we need to convert the multiplication indicators from "K", "M", "B", etc. to 1000, 1000000, 1000000000.  To do this I pulled out the unique values and then mapped them as needed.
 
 ```r
 unique(rawdata$PROPDMGEXP)
@@ -660,7 +661,7 @@ step2$CROPTOTALDMG <- as.numeric(tempCROPDMG) * step2$CROPDMG
 ```
 
 
-In order to provide an overall view of the impact on people I combined fatalities and in juries in as total impact on people in 1000's.  Similarly for the impact on the economy, I did the same for property and crops into damage in billions.
+In order to provide an overall view of the impact on people I combined fatalities and injuries as a total impact on people in 1000's.  Similarly for the impact on the economy, I did the same for property and crops into damage in billions.
 
 ```r
 step2$people <- (step2$FATALITIES + step2$INJURIES)/1000
@@ -668,7 +669,7 @@ step2$damage <- (step2$PROPTOTALDMG + step2$CROPTOTALDMG)/1000000000
 ```
 
 
-Lastly I summarized the impact of people and the economy across the entire data set rounding the results to one decimal place.
+Lastly, I summarized the impact of people and the economy across the entire data and rounded the results to one decimal place.
 
 ```r
 step3<-ddply(step2,c("NEW"),
@@ -713,7 +714,7 @@ p
 ![](repdata_report_files/figure-html/plot1-1.png) 
 
 
-In the figure below, FLOOD has the biggest economic impact.  Double the next closest type HURRICANE.
+In the figure below, FLOOD has the biggest economic impact.  Double the next closest type, HURRICANE.
 
 ```r
 q<-ggplot(chart2, aes(x = reorder(NEW,-damage), y = damage)) + 
